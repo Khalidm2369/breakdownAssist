@@ -3,7 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from './roles.decorator';
 import { PrismaService } from '../../prisma.service';
 import { AuthService } from './auth.service';
-import type { Role } from '@prisma/client';
+import type { Role } from './roles';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -18,14 +18,9 @@ export class RolesGuard implements CanActivate {
     const token = authz.startsWith('Bearer ') ? authz.slice(7) : null;
     if (!token) throw new UnauthorizedException('Missing token');
 
-    let userId: string;
-    try {
-      userId = this.auth.verify(token).sub;
-    } catch {
-      throw new UnauthorizedException('Invalid token');
-    }
+    const userId = this.auth.verify(token).sub;
     const userRoles = await this.prisma.userRole.findMany({ where: { userId }, select: { role: true } });
-    const ok = userRoles.some((ur) => roles.includes(ur.role));
+    const ok = userRoles.some((ur: any) => roles.includes(ur.role));
     if (!ok) throw new ForbiddenException('Insufficient role');
 
     // expose userId downstream

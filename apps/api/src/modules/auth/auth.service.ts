@@ -6,10 +6,8 @@ import {
 import { PrismaService } from '../../prisma.service';
 import * as bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
-
+import type { Role } from './roles';
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
-
-export type RoleUpper = 'CUSTOMER' | 'PROVIDER' | 'FLEET_MANAGER' | 'ADMIN';
 
 export type SignupInput = {
   email: string;
@@ -18,7 +16,7 @@ export type SignupInput = {
   lastName?: string;
   phone?: string;
   /** primary account type the user is creating as */
-  role?: RoleUpper; // defaults to CUSTOMER
+  role?: Role; // defaults to CUSTOMER
   /** provider-only extras */
   businessName?: string;
   serviceTypes?: string[]; // e.g. ["Towing","Express Parcel Delivery"]
@@ -34,13 +32,20 @@ export class AuthService {
     // keep `sub` for guards that read req.userId from `sub`
     return jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: '7d' });
   }
-
-  private async getRolesForUser(userId: string): Promise<RoleUpper[]> {
+  verify(token: string): { sub: string } {
+    try {
+      return jwt.verify(token, JWT_SECRET) as { sub: string };
+    } catch {
+      throw new UnauthorizedException('Invalid token');
+    }
+  }
+  
+  private async getRolesForUser(userId: string): Promise<Role[]> {
     const rs = await this.prisma.userRole.findMany({
       where: { userId },
       select: { role: true },
     });
-    return rs.map((r) => r.role) as RoleUpper[];
+    return rs.map((r: any) => r.role) as Role[];
   }
 
   /* -------------------------------- signup ------------------------------- */

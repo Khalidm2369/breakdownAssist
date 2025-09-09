@@ -1,9 +1,9 @@
 // apps/api/src/modules/tracking/tracking.controller.ts
-import { Body, Controller, Get, Post, Param, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Param, Req, UseGuards } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { JwtRequiredGuard } from '../auth/jwt-required.guard';
 import { Roles } from '../auth/roles.decorator';
-import { Role } from '@prisma/client';
+
 import { RealtimeGateway } from '../../realtime/realtime.gateway';
 
 @UseGuards(JwtRequiredGuard)
@@ -12,8 +12,8 @@ export class TrackingController {
   constructor(private prisma: PrismaService, private ws: RealtimeGateway) {}
 
   @Post('tracking/ping')
-  @Roles(Role.PROVIDER, Role.ADMIN)
-  async ping(@Body() dto: { requestId: string; lat: number; lng: number; speedKph?: number; headingDeg?: number; accuracyM?: number }, req: any) {
+  @Roles('PROVIDER', 'ADMIN')
+  async ping(@Body() dto: { requestId: string; lat: number; lng: number; speedKph?: number; headingDeg?: number; accuracyM?: number }, @Req() req: any) {
     const request = await this.prisma.serviceRequest.findUnique({ where: { id: dto.requestId } });
     if (!request) throw new Error('Request not found');
     // ensure this provider is the accepted one (or admin)
@@ -37,7 +37,7 @@ export class TrackingController {
   }
 
   @Post('tracking/phase')
-  @Roles(Role.PROVIDER, Role.ADMIN)
+  @Roles('PROVIDER', 'ADMIN')
   async setPhase(@Body() dto: { requestId: string; phase: 'EN_ROUTE'|'ARRIVED_PICKUP'|'PICKED_UP'|'IN_TRANSIT'|'ARRIVED_DROPOFF'|'COMPLETE'|'CANCELED' }) {
     const data: any = { phase: dto.phase };
     if (dto.phase === 'EN_ROUTE') data.startedAt = new Date();
@@ -71,7 +71,7 @@ function estimateETA(req: any, pings: any[]): number | null {
 
   const dKm = haversineKm(req.lastLat, req.lastLng, target.lat, target.lng);
   // use last 3 pings avg speed if available, else 40 km/h default
-  const speeds = pings.slice(-3).map(p => p.speedKph).filter(Boolean) as number[];
+  const speeds = pings.slice(0, 3).map(p => p.speedKph).filter(Boolean) as number[];
   const v = speeds.length ? (speeds.reduce((a,b)=>a+b,0)/speeds.length) : 40;
   return Math.max(1, Math.round((dKm / Math.max(5, v)) * 60)); // cap min speed 5km/h
 }

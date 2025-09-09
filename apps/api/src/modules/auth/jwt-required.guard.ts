@@ -11,12 +11,8 @@ export class JwtRequiredGuard implements CanActivate {
     if (!authz.startsWith('Bearer ')) {
       throw new UnauthorizedException('Missing Bearer token');
     }
-    try {
-      const payload = this.auth.verify(authz.slice(7)); // { sub: string }
-      req.userId = payload.sub;
-      return true;
-    } catch {
-      throw new UnauthorizedException('Invalid token');
-    }
+    const payload = this.auth.verify(authz.slice(7)); 
+    req.userId = payload.sub;
+    return true;
   }
 }

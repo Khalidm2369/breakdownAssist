@@ -4,8 +4,6 @@ import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 
 // We use string roles because the DB (SQLite) doesn't support Prisma enums.
-export const APP_ROLES = ['CUSTOMER', 'PROVIDER', 'ADMIN', 'FLEET'] as const;
-export type Role = (typeof APP_ROLES)[number];
 
 @UseGuards(RolesGuard)
 @Controller('me')
@@ -50,10 +48,9 @@ export class ProfilesController {
     });
   }
 
-  // ----- FLEET -----
-  // NOTE: use 'FLEET' (not 'FLEET_MANAGER') to match the rest of the app.
+// ----- FLEET MANAGER -----
   @Get('fleet')
-  @Roles('FLEET', 'ADMIN')
+  @Roles('FLEET_MANAGER', 'ADMIN')
   getFleet(@Req() req: any) {
     return this.prisma.fleetProfile.findUnique({
       where: { userId: req.userId },
@@ -61,7 +58,7 @@ export class ProfilesController {
   }
 
   @Put('fleet')
-  @Roles('FLEET', 'ADMIN')
+  @Roles('FLEET_MANAGER', 'ADMIN')
   upFleet(@Body() dto: any, @Req() req: any) {
     return this.prisma.fleetProfile.upsert({
       where: { userId: req.userId },

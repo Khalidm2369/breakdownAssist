@@ -2,7 +2,6 @@ import { Controller, Post, UseGuards } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
-import { Role } from '@prisma/client';
 import Stripe from 'stripe';
 
 @UseGuards(RolesGuard)
@@ -13,7 +12,7 @@ export class ProviderStripeController {
   constructor(private prisma: PrismaService) {}
 
   @Post('connect')
-  @Roles(Role.PROVIDER, Role.ADMIN)
+  @Roles('PROVIDER', 'ADMIN')
   async connect(req: any) {
     const userId = req.userId;
     let provider = await this.prisma.providerProfile.findUnique({ where: { userId } });
