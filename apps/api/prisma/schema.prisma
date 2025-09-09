@@ -1,0 +1,195 @@
+// apps/api/prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// === Enums ===
+enum Role {
+  CUSTOMER
+  PROVIDER
+  FLEET_MANAGER
+  ADMIN
+}
+
+enum ServiceKind {
+  BREAKDOWN
+  TYRE
+  TOW
+  DELIVERY
+}
+
+enum RequestStatus {
+  OPEN
+  ACCEPTED
+  COMPLETED
+}
+
+enum JobPhase {
+  ASSIGNED // customer accepted an offer
+  EN_ROUTE // provider driving to pickup
+  ARRIVED_PICKUP // reached pickup geofence
+  PICKED_UP // vehicle/parcel on board
+  IN_TRANSIT // between pickup and dropoff
+  ARRIVED_DROPOFF
+  COMPLETE
+  CANCELED
+}
+
+// === Core models ===
+model User {
+  id    String @id @default(cuid())
+  email String @unique
+
+  // Auth / profile
+  passwordHash String?
+  name         String?
+  firstName    String?
+  lastName     String?
+  phone        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Roles
+  roles UserRole[]
+
+  // Requests created by this user (as customer)
+  requests ServiceRequest[] @relation("CustomerRequests")
+
+  // Optional profiles
+  Customer CustomerProfile?
+  Provider ProviderProfile?
+  Fleet    FleetProfile?
+
+  // Provider tracking pings (back relation)
+  pings TrackingPing[] @relation("ProviderPings")
+}
+
+model UserRole {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role
+
+  @@unique([userId, role])
+  @@index([userId])
+}
+
+model ServiceRequest {
+  id String @id @default(cuid())
+
+  // Customer who created the request
+  customerId String?
+  customer   User?   @relation("CustomerRequests", fields: [customerId], references: [id])
+
+  // Core fields
+  kind       ServiceKind
+  title      String
+  pickup     String?
+  dropoff    String?
+  status     RequestStatus @default(OPEN)
+  acceptedBy String? // keep as string for now (provider id/label)
+
+  createdAt DateTime @default(now())
+
+  // Offers & chat
+  offers   Offer[]
+  messages Message[]
+
+  // --- Tracking additions ---
+  pickupLat  Float?
+  pickupLng  Float?
+  dropoffLat Float?
+  dropoffLng Float?
+
+  phase       JobPhase  @default(ASSIGNED)
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  // last known provider position (quick read)
+  lastLat    Float?
+  lastLng    Float?
+  lastPingAt DateTime?
+
+  // breadcrumb pings
+  pings TrackingPing[] @relation("RequestPings")
+
+  @@index([customerId])
+  @@index([createdAt])
+}
+
+model Offer {
+  id        String         @id @default(cuid())
+  requestId String
+  request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  provider   String
+  etaMin     Int
+  priceCents Int
+
+  createdAt DateTime @default(now())
+
+  @@index([requestId])
+}
+
+model Message {
+  id        String         @id @default(cuid())
+  requestId String
+  request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  from String // "customer" | "provider"
+  text String
+  ts   DateTime @default(now()) // frontend expects 'ts'
+
+  @@index([requestId])
+}
+
+// === Profiles for profiles.controller.ts ===
+model CustomerProfile {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  stripeCustId String?
+}
+
+model ProviderProfile {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  businessName   String?
+  services       String? // comma-list for now
+  connectAccount String? // Stripe Connect account id
+}
+
+model FleetProfile {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  orgName String?
+}
+
+// === Tracking breadcrumb ===
+model TrackingPing {
+  id String @id @default(cuid())
+
+  requestId String
+  request   ServiceRequest @relation("RequestPings", fields: [requestId], references: [id], onDelete: Cascade)
+
+  providerId String
+  provider   User   @relation("ProviderPings", fields: [providerId], references: [id], onDelete: Cascade)
+
+  lat        Float
+  lng        Float
+  speedKph   Float?
+  headingDeg Float?
+  accuracyM  Float?
+  ts         DateTime @default(now())
+
+  @@index([requestId, ts])
+  @@index([providerId, ts])
+}
