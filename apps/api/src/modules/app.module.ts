@@ -1,12 +1,11 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 
-// NOTE: app.module.ts is in src/modules/, PrismaService is in src/
-// so we go up one directory:
+// Prisma
 import { PrismaService } from '../prisma.service';
 
+// Realtime / feature modules
 import { RealtimeModule } from '../realtime/realtime.module';
-
-// Feature modules (these are siblings of app.module.ts under src/modules)
 import { RequestsModule } from './requests/requests.module';
 import { BidsModule } from './bids/bids.module';
 import { MessagesModule } from './messages/messages.module';
@@ -19,14 +18,24 @@ import { PricingService } from './pricing/pricing.service';
 
 @Module({
   imports: [
+    // Make env vars available app-wide (loads .env automatically)
+    ConfigModule.forRoot({
+      isGlobal: true,
+      cache: true,
+      // envFilePath: ['.env', '.env.local'], // uncomment if you keep multiple files
+    }),
+
+    // Feature modules
     RealtimeModule,
     RequestsModule,
     BidsModule,
     MessagesModule,
-    PaymentsModule,
+    PaymentsModule, // contains /webhooks/stripe
     UsersModule,
+    // ReportsModule, // <-- add later when you build /reports/revenue
   ],
   controllers: [PricingController],
   providers: [PrismaService, PricingService],
+  exports: [PrismaService],
 })
 export class AppModule {}

@@ -193,3 +193,21 @@ model TrackingPing {
   @@index([requestId, ts])
   @@index([providerId, ts])
 }
+model Job {
+  id                     String   @id @default(cuid())
+  title                  String?
+  kind                   String
+  status                 String
+  pickup                 String?
+  dropoff                String?
+
+  totalCents             Int?
+  platformFeeCents       Int?
+  stripePaymentIntentId  String? @unique
+  paidAt                 DateTime?
+
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([paidAt])
+}

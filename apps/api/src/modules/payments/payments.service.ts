@@ -1,29 +1,32 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import Stripe from 'stripe';
+import { PrismaService } from '../../prisma.service';
 
-const API_VERSION: Stripe.LatestApiVersion = '2024-06-20';
+const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY!;
+const CURRENCY = (process.env.STRIPE_CURRENCY || 'eur').toLowerCase();
 
 @Injectable()
 export class PaymentsService {
-  private stripe: Stripe;
+  private stripe = new Stripe(STRIPE_SECRET, { apiVersion: '2024-06-20' });
 
-  constructor() {
-    const sk = process.env.STRIPE_SECRET_KEY || '';
-    if (!sk.startsWith('sk_')) {
-      throw new Error('STRIPE_SECRET_KEY is missing or not a secret key (sk_...)');
-    }
-    this.stripe = new Stripe(sk, { apiVersion: API_VERSION });
-  }
+  constructor(private prisma: PrismaService) {}
 
-  async createIntent(amountCents: number, currency = process.env.STRIPE_CURRENCY || 'eur') {
-    if (!Number.isFinite(amountCents) || amountCents < 50) {
-      throw new BadRequestException('amountCents must be >= 50');
-    }
-    const pi = await this.stripe.paymentIntents.create({
-      amount: Math.round(amountCents),
-      currency,
+  async createIntent(amountCents: number, jobId?: string) {
+    const intent = await this.stripe.paymentIntents.create({
+      amount: amountCents,
+      currency: CURRENCY,
+      // If you use Connect with destination charges, also set transfer/application_fee here.
+      metadata: jobId ? { jobId } : {},
       automatic_payment_methods: { enabled: true },
     });
-    return { clientSecret: pi.client_secret };
+
+    if (jobId) {
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: { stripePaymentIntentId: intent.id },
+      });
+    }
+
+    return { clientSecret: intent.client_secret };
   }
 }

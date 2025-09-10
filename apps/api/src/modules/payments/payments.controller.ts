@@ -3,9 +3,10 @@ import { PaymentsService } from './payments.service';
 
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly svc: PaymentsService) {}
+  constructor(private payments: PaymentsService) {}
+
   @Post('intent')
-  intent(@Body() body: { amountCents: number }) {
-    return this.svc.createIntent(Number(body.amountCents));
+  async createIntent(@Body() body: { amountCents: number; jobId?: string }) {
+    return this.payments.createIntent(body.amountCents, body.jobId);
   }
 }

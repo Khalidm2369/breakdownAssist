@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist-test",
+    "noImplicitAny": false,
+    "strict": false
+  },
+  "include": [
+    "src/prisma.service.ts",
+    "src/modules/auth/auth.service.ts",
+    "src/modules/auth/jwt-required.guard.ts",
+    "src/modules/auth/roles.guard.ts",
+    "src/modules/auth/roles.decorator.ts",
+    "src/modules/auth/__tests__/*.ts",
+    "src/types/**/*.d.ts"
+  ]
+}

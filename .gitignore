@@ -5,3 +5,6 @@ node_modules
 .env.*
 apps/**/.env*
 packages/**/.env*
+apps/**/dist
+apps/**/dist-test
+apps/**/dist-test

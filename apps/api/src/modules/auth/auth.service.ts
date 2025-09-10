@@ -32,20 +32,21 @@ export class AuthService {
     // keep `sub` for guards that read req.userId from `sub`
     return jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: '7d' });
   }
+
+  private async getRolesForUser(userId: string): Promise<RoleUpper[]> {
+    const rs = await this.prisma.userRole.findMany({
+      where: { userId },
+      select: { role: true },
+    });
+    return rs.map((r) => r.role) as RoleUpper[];
+  }
+
   verify(token: string): { sub: string } {
     try {
       return jwt.verify(token, JWT_SECRET) as { sub: string };
     } catch {
       throw new UnauthorizedException('Invalid token');
     }
-  }
-  
-  private async getRolesForUser(userId: string): Promise<Role[]> {
-    const rs = await this.prisma.userRole.findMany({
-      where: { userId },
-      select: { role: true },
-    });
-    return rs.map((r: any) => r.role) as Role[];
   }
 
   /* -------------------------------- signup ------------------------------- */
